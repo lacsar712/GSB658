@@ -1,0 +1,54 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
+  tomcat:
+    max-http-post-size: 10MB
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 为了解决可能出现的Docker内部网络通信问题，使用配置化的 host，也可以通过环境变量覆盖
+    url: jdbc:mysql://${DB_HOST:localhost}:3306/community_system?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:root}
+    
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: 6379
+    password: ${REDIS_PASSWORD:}
+    database: 0
+    timeout: 3000ms
+
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+
+# 自定义JWT设置
+jwt:
+  secret: aW1wb3J0YW50X3ByaXZhdGVfa2V5X2Zvcl9jb21tdW5pdHlfYXBwX3NlY3VyZV8yMDIz
+  expiration: 86400 # 24小时有效
+
+# 百度UNIT及高德地图配置
+thirdparty:
+  amap:
+    key: "YOUR_AMAP_KEY_HERE"
+  baidu:
+    client-id: "YOUR_BAIDU_API_KEY_HERE"
+    client-secret: "YOUR_BAIDU_SECRET_KEY_HERE"

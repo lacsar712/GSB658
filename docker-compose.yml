@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:5.7
+    platform: linux/amd64
+    container_name: community_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: community_system
+      TZ: Asia/Shanghai
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - community_net
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --explicit_defaults_for_timestamp --max_allowed_packet=16M
+
+  redis:
+    image: redis:7-alpine
+    container_name: community_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - community_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: community_backend
+    restart: on-failure
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=root
+      - REDIS_HOST=redis
+      - TZ=Asia/Shanghai
+    ports:
+      - "8080:8080"
+    networks:
+      - community_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: community_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks:
+      - community_net
+
+networks:
+  community_net:
+    driver: bridge
+
+volumes:
+  mysql_data:
