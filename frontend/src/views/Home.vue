@@ -295,6 +295,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
+import { useDailyQuiz } from '@/composables/useDailyQuiz'
 
 const router = useRouter()
 const isAdmin = localStorage.getItem('role') === 'ADMIN'
@@ -313,8 +314,7 @@ const userInfo = ref({
   consecutiveDays: 0,
   communityId: null
 })
-const loadingQuiz = ref(true)
-const quizzes = ref<any[]>([])
+const { loadingQuiz, quizzes, loadTodayQuizzes, submitQuiz, getStreakBonus, parseOptions } = useDailyQuiz(userInfo)
 const showReport = ref(false)
 const showNotice = ref(false)
 const photoInput = ref<HTMLInputElement>()
@@ -393,29 +393,7 @@ const getCommunityName = (id: number) => {
   return map[id] || '未知社区'
 }
 
-// 加载今日答题
-const loadTodayQuizzes = async () => {
-  loadingQuiz.value = true
-  try {
-    const response = await request.get('/quiz/today')
-    if (response.data.code === 200) {
-      quizzes.value = response.data.data || []
-    }
-  } catch (error) {
-    console.error('获取今日答题失败:', error)
-  } finally {
-    loadingQuiz.value = false
-  }
-}
-
-// 获取连续打卡倍数文本
-const getStreakBonus = (days: number) => {
-  if (days >= 30) return '3.0x'
-  if (days >= 15) return '2.0x'
-  if (days >= 7) return '1.5x'
-  if (days >= 3) return '1.2x'
-  return ''
-}
+// 加载今日答题、答题相关逻辑（getStreakBonus、parseOptions、submitQuiz）已抽离到 useDailyQuiz composable
 const noticeList = ref([
   { title: '🔧 小区停水通知', date: '2月24日', content: '因市政管网维修，本社区将于2月26日 08:00-18:00 临时停水，请居民提前储水，不便之处敬请谅解。' },
   { title: '🏡 业主大会召集令', date: '2月20日', content: '定于3月1日（周六）下午2时，在社区活动中心二楼会议室召开业主大会，欢迎各位业主积极参与。' },
@@ -438,55 +416,6 @@ onMounted(() => {
   // 加载答题
   loadTodayQuizzes()
 })
-
-const parseOptions = (jsonString: string) => {
-  try { return JSON.parse(jsonString) } catch { return [] }
-}
-
-const submitQuiz = async (qId: number, answerKey: string) => {
-  try {
-    const response = await request.post('/quiz/submit', {
-      questionId: qId,
-      answer: answerKey
-    })
-    
-    if (response.data.code === 200) {
-      const result = response.data.data
-      
-      // 构建消息
-      let message = result.isCorrect
-        ? `✅ 回答正确！`
-        : `❌ 回答错误，正确答案是 ${result.correctAnswer}`
-      
-      if (result.earnedPoints > 0) {
-        message += ` 获得 ${result.earnedPoints} 积分`
-        
-        // 显示奖励详情
-        if (result.bonusPoints > 0) {
-          message += ` (基础 ${result.basePoints} + 连续${result.consecutiveDays}天奖励 ${result.bonusPoints})`
-        }
-        
-        // 更新本地积分和连续天数
-        userInfo.value.pointBalance = (userInfo.value.pointBalance as number) + result.earnedPoints
-        userInfo.value.consecutiveDays = result.consecutiveDays
-      }
-      
-      ElMessage({
-        message,
-        type: result.isCorrect ? 'success' : 'warning',
-        duration: 4000
-      })
-      
-      // 移除已答题目
-      quizzes.value = quizzes.value.filter(q => q.id !== qId)
-    } else {
-      ElMessage.error(response.data.message || '提交失败')
-    }
-  } catch (error: any) {
-    console.error('提交答案失败:', error)
-    ElMessage.error(error.response?.data?.message || '提交失败，请稍后重试')
-  }
-}
 
 const handlePhotoSelect = (event: Event) => {
   const target = event.target as HTMLInputElement
